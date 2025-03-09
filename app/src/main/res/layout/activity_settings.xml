@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="#000000">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="播放顺序模式"
+        android:textColor="#FFFFFF" />
+
+    <Spinner
+        android:id="@+id/playback_mode_spinner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:focusable="true" />
+
+    <Button
+        android:id="@+id/clear_playlist_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="清除播放列表"
+        android:focusable="true"
+        android:textColor="#FFFFFF" />
+
+    <CheckBox
+        android:id="@+id/auto_play_checkbox"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="启动时自动播放"
+        android:focusable="true"
+        android:textColor="#FFFFFF" />
+
+    <Switch
+        android:id="@+id/auto_start_switch"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="开机自动启动" />
+</LinearLayout>

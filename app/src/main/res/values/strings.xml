@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">广告播放器</string>
+    <string name="tab_select_path">选择路径</string>
+    <string name="tab_settings">设置</string>
+    <string name="playlist_empty">播放列表为空</string>
+    <string name="confirm">确认</string>
+    <string name="file_size">大小:</string>
+    <string name="cycle_all">循环所有</string>
+    <string name="cycle_single">单曲循环</string>
+    <string name="random">随机</string>
+    <string name="previous">上一个</string>
+    <string name="rewind">后退10秒</string>
+    <string name="play">播放</string>
+    <string name="pause">暂停</string>
+    <string name="fast_forward">前进10秒</string>
+    <string name="next">下一个</string>
+</resources>

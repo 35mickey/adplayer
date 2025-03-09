@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:background="#000000">
+
+    <!-- 左侧选项卡 -->
+    <LinearLayout
+        android:id="@+id/tab_container"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:background="#333333">
+
+        <Button
+            android:id="@+id/tab_select_path"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/tab_select_path"
+            android:focusable="true"
+            android:textColor="#FFFFFF" />
+
+        <Button
+            android:id="@+id/tab_settings"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/tab_settings"
+            android:focusable="true"
+            android:textColor="#FFFFFF" />
+    </LinearLayout>
+
+    <!-- 右侧播放列表 -->
+    <ListView
+        android:id="@+id/playlist"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:background="#000000"
+        android:focusable="true"
+        android:textColor="#FFFFFF" />
+</LinearLayout>
