@@ -35,4 +35,5 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.leanback)
+    implementation("androidx.documentfile:documentfile:1.0.1") // 添加 SAF 支持
 }

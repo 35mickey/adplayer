@@ -7,6 +7,8 @@ import android.os.Looper
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
+import android.view.Window
+import android.view.WindowManager
 import android.widget.Button
 import android.widget.SeekBar
 import android.widget.TextView
@@ -48,6 +50,23 @@ class PlayerActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // 设置全屏模式，确保在 setContentView 之前
+        requestWindowFeature(Window.FEATURE_NO_TITLE)
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_FULLSCREEN,
+            WindowManager.LayoutParams.FLAG_FULLSCREEN
+        )
+        // 添加沉浸式模式，隐藏状态栏和导航栏
+        window.decorView.systemUiVisibility = (
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                        or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                        or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        or View.SYSTEM_UI_FLAG_FULLSCREEN
+                        or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                )
+
         setContentView(R.layout.activity_player)
 
         videoView = findViewById(R.id.video_view)
@@ -64,7 +83,6 @@ class PlayerActivity : AppCompatActivity() {
         videoFiles = intent.getStringArrayListExtra("video_files") ?: ArrayList()
         mode = getSharedPreferences("settings", MODE_PRIVATE).getInt("playback_mode", 0)
 
-        // 恢复播放状态
         val prefs = getSharedPreferences("playback_state", MODE_PRIVATE)
         currentPosition = prefs.getInt("last_video_index", intent.getIntExtra("position", 0))
         val lastProgress = prefs.getInt("last_progress", 0)
@@ -77,7 +95,7 @@ class PlayerActivity : AppCompatActivity() {
         setupControls()
         setupFocus()
         setupTouch()
-        playVideo(lastProgress) // 传入上次进度
+        playVideo(lastProgress)
     }
 
     private fun setupControls() {
@@ -187,16 +205,18 @@ class PlayerActivity : AppCompatActivity() {
             if (file.exists()) {
                 fileName.text = file.name
                 videoView.setVideoPath(path)
-                videoView.start()
-                if (progress > 0) videoView.seekTo(progress) // 恢复进度
-                playPauseButton.text = getString(R.string.pause)
-                handler.removeCallbacks(progressRunnable)
-                handler.postDelayed(progressRunnable, 0)
-                showControls()
-                hideControlsAfterDelay() // 确保每次播放都触发隐藏
             } else {
-                handleVideoError()
+                // 尝试将路径作为URI处理（兼容SAF）
+                videoView.setVideoURI(android.net.Uri.parse(path))
+                fileName.text = path.substringAfterLast("/")
             }
+            videoView.start()
+            if (progress > 0) videoView.seekTo(progress) // 恢复进度
+            playPauseButton.text = getString(R.string.pause)
+            handler.removeCallbacks(progressRunnable)
+            handler.postDelayed(progressRunnable, 0)
+            showControls()
+            hideControlsAfterDelay() // 确保每次播放都触发隐藏
         } else {
             finish()
         }

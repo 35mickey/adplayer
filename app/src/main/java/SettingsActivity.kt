@@ -6,6 +6,7 @@ import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.Spinner
+import android.widget.Switch
 import androidx.appcompat.app.AppCompatActivity
 import android.widget.AdapterView
 
@@ -18,12 +19,14 @@ class SettingsActivity : AppCompatActivity() {
         val playbackModeSpinner = findViewById<Spinner>(R.id.playback_mode_spinner)
         val clearPlaylistButton = findViewById<Button>(R.id.clear_playlist_button)
         val autoPlayCheckbox = findViewById<CheckBox>(R.id.auto_play_checkbox)
+        val autoStartSwitch = findViewById<Switch>(R.id.auto_start_switch)
 
         val modes = arrayOf("循环所有", "单曲循环", "随机")
         playbackModeSpinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, modes)
         val prefs = getSharedPreferences("settings", MODE_PRIVATE)
         playbackModeSpinner.setSelection(prefs.getInt("playback_mode", 0))
         autoPlayCheckbox.isChecked = prefs.getBoolean("auto_play", false)
+        autoStartSwitch.isChecked = prefs.getBoolean("auto_start", false)
 
         playbackModeSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
@@ -41,6 +44,10 @@ class SettingsActivity : AppCompatActivity() {
 
         autoPlayCheckbox.setOnCheckedChangeListener { _, isChecked ->
             prefs.edit().putBoolean("auto_play", isChecked).apply()
+        }
+
+        autoStartSwitch.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("auto_start", isChecked).apply()
         }
     }
 }

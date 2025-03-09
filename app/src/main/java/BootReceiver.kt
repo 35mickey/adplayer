@@ -9,7 +9,7 @@ class BootReceiver : BroadcastReceiver() {
         if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
             val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
             if (prefs.getBoolean("auto_start", false)) {
-                val launchIntent = Intent(context, PathSelectionActivity::class.java)
+                val launchIntent = Intent(context, MainActivity::class.java)
                 launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 context.startActivity(launchIntent)
             }
