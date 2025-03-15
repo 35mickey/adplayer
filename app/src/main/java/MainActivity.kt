@@ -58,6 +58,8 @@ class MainActivity : AppCompatActivity() {
             if (selectedFiles != null) {
                 videoFiles.clear()
                 videoFiles.addAll(selectedFiles)
+                // 按文件名排序
+                videoFiles.sortWith(compareBy { it.substringAfterLast("/") })
                 savePlaylist()
                 updatePlaylist()
             }
@@ -68,10 +70,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updatePlaylist() {
+        val displayList = if (videoFiles.isEmpty()) {
+            listOf(getString(R.string.playlist_empty))
+        } else {
+            // 只显示文件名，而不是完整路径
+            videoFiles.map { it.substringAfterLast("/") }
+        }
         val adapter = ArrayAdapter(
             this,
             android.R.layout.simple_list_item_1,
-            if (videoFiles.isEmpty()) listOf(getString(R.string.playlist_empty)) else videoFiles
+            displayList
         )
         playlist.adapter = adapter
         playlist.setOnItemClickListener { _, _, position, _ ->
@@ -101,6 +109,9 @@ class MainActivity : AppCompatActivity() {
     private fun loadPlaylist() {
         val prefs = getSharedPreferences("playlist", MODE_PRIVATE)
         videoFiles.clear()
-        videoFiles.addAll(prefs.getStringSet("videos", emptySet()) ?: emptySet())
+        val loadedFiles = prefs.getStringSet("videos", emptySet()) ?: emptySet()
+        videoFiles.addAll(loadedFiles)
+        // 按文件名排序
+        videoFiles.sortWith(compareBy { it.substringAfterLast("/") })
     }
 }

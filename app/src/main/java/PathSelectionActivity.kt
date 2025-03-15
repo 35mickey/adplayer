@@ -39,17 +39,31 @@ class PathSelectionActivity : AppCompatActivity() {
         confirmButton = findViewById(R.id.confirm_button)
         deleteButton = findViewById(R.id.delete_button)
 
+        // 根据 Android 版本选择加载方式
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // Android 10+ 使用 SAF，启动目录选择
             startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), SAF_REQUEST_CODE)
+            Toast.makeText(this, "请在弹出的窗口中选择存储目录（如 U 盘）", Toast.LENGTH_LONG).show()
+            confirmButton.text = "选择其他目录" // 备用按钮，用于重新选择
+            confirmButton.setOnClickListener {
+                startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), SAF_REQUEST_CODE)
+            }
         } else {
+            // Android 9 及以下，检查权限并加载存储设备
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED ||
                 ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE), STORAGE_REQUEST_CODE)
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE),
+                    STORAGE_REQUEST_CODE
+                )
             } else {
                 loadStorageDevices()
             }
+            confirmButton.text = getString(R.string.confirm)
         }
 
+        // 文件列表点击事件
         fileList.setOnItemClickListener { _, _, position, _ ->
             val selectedItem = items[position]
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -73,16 +87,9 @@ class PathSelectionActivity : AppCompatActivity() {
             }
         }
 
-        confirmButton.setOnClickListener {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                selectedFiles.clear()
-                items.forEach { uri ->
-                    val docFile = DocumentFile.fromSingleUri(this, android.net.Uri.parse(uri))
-                    if (docFile?.isFile == true && docFile.name?.endsWith(".mp4", true) == true) {
-                        selectedFiles.add(uri)
-                    }
-                }
-            } else {
+        // 确认按钮点击事件（Android 9 及以下）
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            confirmButton.setOnClickListener {
                 currentDir?.let { dir ->
                     selectedFiles.clear()
                     dir.listFiles()?.forEach { file ->
@@ -91,17 +98,18 @@ class PathSelectionActivity : AppCompatActivity() {
                         }
                     }
                 }
-            }
-            if (selectedFiles.isNotEmpty()) {
-                val intent = Intent()
-                intent.putStringArrayListExtra("video_files", ArrayList(selectedFiles))
-                setResult(RESULT_OK, intent)
-                finish()
-            } else {
-                Toast.makeText(this, "未选择任何MP4文件", Toast.LENGTH_SHORT).show()
+                if (selectedFiles.isNotEmpty()) {
+                    val intent = Intent()
+                    intent.putStringArrayListExtra("video_files", ArrayList(selectedFiles))
+                    setResult(RESULT_OK, intent)
+                    finish()
+                } else {
+                    Toast.makeText(this, "未选择任何 MP4 文件", Toast.LENGTH_SHORT).show()
+                }
             }
         }
 
+        // 删除按钮点击事件
         deleteButton.setOnClickListener {
             val checkedPositions = fileList.checkedItemPositions
             if (checkedPositions.size() > 0) {
@@ -133,6 +141,7 @@ class PathSelectionActivity : AppCompatActivity() {
                                 }
                             }
                         }
+                        // 刷新列表
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                             currentTreeUri?.let { loadDirectoryFromUri(it) }
                         } else {
@@ -193,9 +202,30 @@ class PathSelectionActivity : AppCompatActivity() {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == SAF_REQUEST_CODE && resultCode == RESULT_OK) {
             data?.data?.let { treeUri ->
-                contentResolver.takePersistableUriPermission(treeUri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                contentResolver.takePersistableUriPermission(
+                    treeUri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
                 currentTreeUri = treeUri
                 loadDirectoryFromUri(treeUri)
+                // SAF 模式下，确认按钮用于返回选择的文件
+                confirmButton.setOnClickListener {
+                    selectedFiles.clear()
+                    items.forEach { uri ->
+                        val docFile = DocumentFile.fromSingleUri(this, android.net.Uri.parse(uri))
+                        if (docFile?.isFile == true && docFile.name?.endsWith(".mp4", true) == true) {
+                            selectedFiles.add(uri)
+                        }
+                    }
+                    if (selectedFiles.isNotEmpty()) {
+                        val intent = Intent()
+                        intent.putStringArrayListExtra("video_files", ArrayList(selectedFiles))
+                        setResult(RESULT_OK, intent)
+                        finish()
+                    } else {
+                        Toast.makeText(this, "未选择任何 MP4 文件", Toast.LENGTH_SHORT).show()
+                    }
+                }
             }
         }
     }
@@ -203,10 +233,36 @@ class PathSelectionActivity : AppCompatActivity() {
     private fun loadStorageDevices() {
         items.clear()
         displayItems.clear()
-        val externalStorage = Environment.getExternalStorageDirectory()
-        items.add(externalStorage.absolutePath)
-        displayItems.add(externalStorage.absolutePath)
-        currentDir = externalStorage
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // SAF 模式下，仅显示提示
+            displayItems.add("请点击上方按钮选择存储目录")
+        } else {
+            // 添加内部存储
+            val internalStorage = Environment.getExternalStorageDirectory()
+            items.add(internalStorage.absolutePath)
+            displayItems.add("内部存储: ${internalStorage.absolutePath}")
+
+            // 检测可能的外部存储挂载点（包括 U 盘）
+            val possibleMountPoints = listOf(
+                "/storage", "/mnt", "/mnt/media_rw", "/mnt/usb", "/storage/usb"
+            )
+            for (path in possibleMountPoints) {
+                val dir = File(path)
+                if (dir.exists() && dir.isDirectory) {
+                    dir.listFiles()?.forEach { subDir ->
+                        if (subDir.isDirectory && subDir.canRead() && subDir.absolutePath != internalStorage.absolutePath) {
+                            items.add(subDir.absolutePath)
+                            displayItems.add("外部存储: ${subDir.absolutePath}")
+                        }
+                    }
+                }
+            }
+            if (items.isEmpty()) {
+                displayItems.add("未检测到存储设备")
+            }
+            currentDir = internalStorage
+        }
         updateFileList()
     }
 
@@ -219,7 +275,10 @@ class PathSelectionActivity : AppCompatActivity() {
         }
         dir.listFiles()?.forEach { file ->
             items.add(file.absolutePath)
-            displayItems.add(if (file.isFile) "${file.absolutePath} ${getString(R.string.file_size)} ${(file.length() / 1024)} KB" else file.absolutePath)
+            displayItems.add(
+                if (file.isFile) "${file.absolutePath} ${getString(R.string.file_size)} ${(file.length() / 1024)} KB"
+                else file.absolutePath
+            )
         }
         updateFileList()
     }
@@ -230,7 +289,10 @@ class PathSelectionActivity : AppCompatActivity() {
         val documentFile = DocumentFile.fromTreeUri(this, treeUri)
         documentFile?.listFiles()?.forEach { file ->
             items.add(file.uri.toString())
-            displayItems.add(if (file.isFile) "${file.name} ${getString(R.string.file_size)} ${(file.length() / 1024)} KB" else file.name ?: file.uri.toString())
+            displayItems.add(
+                if (file.isFile) "${file.name} ${getString(R.string.file_size)} ${(file.length() / 1024)} KB"
+                else file.name ?: file.uri.toString()
+            )
         }
         updateFileList()
     }
