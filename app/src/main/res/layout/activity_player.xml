@@ -10,6 +10,20 @@
         android:layout_height="match_parent"
         android:layout_centerInParent="true" />
 
+    <!-- 添加自动续播提示 -->
+    <TextView
+        android:id="@+id/auto_play_tip"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="正在自动续播"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp"
+        android:background="#80000000"
+        android:padding="8dp"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="16dp"
+        android:visibility="gone" />
+
     <LinearLayout
         android:id="@+id/control_layout"
         android:layout_width="match_parent"

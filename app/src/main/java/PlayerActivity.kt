@@ -1,6 +1,6 @@
 package com.tutu.adplayer
 
-import android.media.MediaPlayer
+import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -16,7 +16,6 @@ import android.widget.Toast
 import android.widget.VideoView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
-import java.io.File
 
 class PlayerActivity : AppCompatActivity() {
 
@@ -30,19 +29,19 @@ class PlayerActivity : AppCompatActivity() {
     private lateinit var currentTime: TextView
     private lateinit var totalTime: TextView
     private lateinit var controlLayout: View
+    private lateinit var autoPlayTip: TextView
 
     private lateinit var videoFiles: ArrayList<String>
     private var currentPosition = 0
     private var mode = 0
     private val handler = Handler(Looper.getMainLooper())
-    private val TAG = "PlayerActivity"
     private val progressRunnable = object : Runnable {
         override fun run() {
             if (videoView.isPlaying) {
                 val currentPos = videoView.currentPosition
                 seekBar.progress = currentPos
                 updateTimeDisplay()
-                savePlaybackState(currentPos) // 实时保存播放状态
+                savePlaybackState(currentPos)
             }
             handler.postDelayed(this, 1000)
         }
@@ -50,14 +49,8 @@ class PlayerActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // 设置全屏模式，确保在 setContentView 之前
         requestWindowFeature(Window.FEATURE_NO_TITLE)
-        window.setFlags(
-            WindowManager.LayoutParams.FLAG_FULLSCREEN,
-            WindowManager.LayoutParams.FLAG_FULLSCREEN
-        )
-        // 添加沉浸式模式，隐藏状态栏和导航栏
+        window.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN)
         window.decorView.systemUiVisibility = (
                 View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                         or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
@@ -66,7 +59,6 @@ class PlayerActivity : AppCompatActivity() {
                         or View.SYSTEM_UI_FLAG_FULLSCREEN
                         or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
                 )
-
         setContentView(R.layout.activity_player)
 
         videoView = findViewById(R.id.video_view)
@@ -79,13 +71,16 @@ class PlayerActivity : AppCompatActivity() {
         currentTime = findViewById(R.id.current_time)
         totalTime = findViewById(R.id.total_time)
         controlLayout = findViewById(R.id.control_layout)
+        autoPlayTip = findViewById(R.id.auto_play_tip)
 
         videoFiles = intent.getStringArrayListExtra("video_files") ?: ArrayList()
         mode = getSharedPreferences("settings", MODE_PRIVATE).getInt("playback_mode", 0)
 
         val prefs = getSharedPreferences("playback_state", MODE_PRIVATE)
-        currentPosition = prefs.getInt("last_video_index", intent.getIntExtra("position", 0))
-        val lastProgress = prefs.getInt("last_progress", 0)
+        val intentPosition = intent.getIntExtra("position", -1)
+        val isManualPlay = intentPosition >= 0 && intent.getBooleanExtra("manual_play", false)
+        currentPosition = if (isManualPlay) intentPosition else prefs.getInt("last_video_index", 0)
+        val lastProgress = if (isManualPlay) 0 else prefs.getInt("last_progress", 0)
 
         if (videoFiles.isEmpty()) {
             finish()
@@ -96,6 +91,12 @@ class PlayerActivity : AppCompatActivity() {
         setupFocus()
         setupTouch()
         playVideo(lastProgress)
+
+        val isAutoPlay = getSharedPreferences("settings", MODE_PRIVATE).getBoolean("auto_play", false) && !isManualPlay
+        if (isAutoPlay) {
+            autoPlayTip.visibility = View.VISIBLE
+            handler.postDelayed({ autoPlayTip.visibility = View.GONE }, 5000)
+        }
     }
 
     private fun setupControls() {
@@ -123,7 +124,6 @@ class PlayerActivity : AppCompatActivity() {
             seekBar.max = if (mp.duration > 0) mp.duration else 0
             seekBar.progress = videoView.currentPosition
             updateTimeDisplay()
-            handler.removeCallbacks(progressRunnable)
             handler.postDelayed(progressRunnable, 0)
         }
 
@@ -152,7 +152,6 @@ class PlayerActivity : AppCompatActivity() {
                     updateTimeDisplay()
                 }
             }
-
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
@@ -163,17 +162,9 @@ class PlayerActivity : AppCompatActivity() {
         buttons.forEach { button ->
             button.setOnFocusChangeListener { _, hasFocus ->
                 if (hasFocus) {
-                    ViewCompat.animate(button)
-                        .scaleX(1.2f)
-                        .scaleY(1.2f)
-                        .setDuration(200)
-                        .start()
+                    ViewCompat.animate(button).scaleX(1.2f).scaleY(1.2f).setDuration(200).start()
                 } else {
-                    ViewCompat.animate(button)
-                        .scaleX(1.0f)
-                        .scaleY(1.0f)
-                        .setDuration(200)
-                        .start()
+                    ViewCompat.animate(button).scaleX(1.0f).scaleY(1.0f).setDuration(200).start()
                 }
             }
         }
@@ -181,11 +172,10 @@ class PlayerActivity : AppCompatActivity() {
             val params = seekBar.layoutParams
             if (hasFocus) {
                 params.height = (params.height * 1.5).toInt()
-                seekBar.layoutParams = params
             } else {
                 params.height = (params.height / 1.5).toInt()
-                seekBar.layoutParams = params
             }
+            seekBar.layoutParams = params
         }
     }
 
@@ -201,31 +191,32 @@ class PlayerActivity : AppCompatActivity() {
     private fun playVideo(progress: Int = 0) {
         if (videoFiles.isNotEmpty() && currentPosition in videoFiles.indices) {
             val path = videoFiles[currentPosition]
-            val file = File(path)
-            if (file.exists()) {
-                fileName.text = file.name
-                videoView.setVideoPath(path)
-            } else {
-                // 尝试将路径作为URI处理（兼容SAF）
-                videoView.setVideoURI(android.net.Uri.parse(path))
+            try {
+                videoView.stopPlayback()
+                videoView.setVideoURI(null)
+                videoView.setVideoURI(Uri.parse(path))
                 fileName.text = path.substringAfterLast("/")
+                videoView.start()
+                if (progress > 0) {
+                    videoView.seekTo(progress)
+                }
+                playPauseButton.text = getString(R.string.pause)
+                handler.removeCallbacks(progressRunnable)
+                handler.postDelayed(progressRunnable, 0)
+                showControls()
+                hideControlsAfterDelay()
+            } catch (e: Exception) {
+                handleVideoError()
             }
-            videoView.start()
-            if (progress > 0) videoView.seekTo(progress) // 恢复进度
-            playPauseButton.text = getString(R.string.pause)
-            handler.removeCallbacks(progressRunnable)
-            handler.postDelayed(progressRunnable, 0)
-            showControls()
-            hideControlsAfterDelay() // 确保每次播放都触发隐藏
         } else {
             finish()
         }
     }
 
     private fun handleVideoError() {
-        val currentFile = File(videoFiles[currentPosition]).name
+        val currentFile = videoFiles.getOrNull(currentPosition)?.substringAfterLast("/") ?: "未知文件"
         val nextPosition = (currentPosition + 1) % videoFiles.size
-        val nextFile = File(videoFiles[nextPosition]).name
+        val nextFile = videoFiles.getOrNull(nextPosition)?.substringAfterLast("/") ?: "未知文件"
         var countdown = 3
         val toast = Toast.makeText(this, "", Toast.LENGTH_SHORT)
         handler.removeCallbacksAndMessages(null)
@@ -298,7 +289,8 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun savePlaybackState(progress: Int) {
-        getSharedPreferences("playback_state", MODE_PRIVATE).edit()
+        getSharedPreferences("playback_state", MODE_PRIVATE)
+            .edit()
             .putInt("last_video_index", currentPosition)
             .putInt("last_progress", progress)
             .apply()

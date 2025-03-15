@@ -1,9 +1,7 @@
 package com.tutu.adplayer
 
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.ListView
@@ -37,7 +35,7 @@ class MainActivity : AppCompatActivity() {
         updatePlaylist()
 
         if (getSharedPreferences("settings", MODE_PRIVATE).getBoolean("auto_play", false) && videoFiles.isNotEmpty()) {
-            startPlayer(0)
+            startPlayer(0, true)
         }
     }
 
@@ -45,17 +43,9 @@ class MainActivity : AppCompatActivity() {
         buttons.forEach { button ->
             button.setOnFocusChangeListener { _, hasFocus ->
                 if (hasFocus) {
-                    ViewCompat.animate(button)
-                        .scaleX(1.2f)
-                        .scaleY(1.2f)
-                        .setDuration(200)
-                        .start()
+                    ViewCompat.animate(button).scaleX(1.2f).scaleY(1.2f).setDuration(200).start()
                 } else {
-                    ViewCompat.animate(button)
-                        .scaleX(1.0f)
-                        .scaleY(1.0f)
-                        .setDuration(200)
-                        .start()
+                    ViewCompat.animate(button).scaleX(1.0f).scaleY(1.0f).setDuration(200).start()
                 }
             }
         }
@@ -86,21 +76,26 @@ class MainActivity : AppCompatActivity() {
         playlist.adapter = adapter
         playlist.setOnItemClickListener { _, _, position, _ ->
             if (videoFiles.isNotEmpty()) {
-                startPlayer(position)
+                startPlayer(position, false)
             }
         }
     }
 
-    private fun startPlayer(position: Int) {
+    private fun startPlayer(position: Int, autoPlay: Boolean) {
         val intent = Intent(this, PlayerActivity::class.java)
         intent.putStringArrayListExtra("video_files", ArrayList(videoFiles))
-        intent.putExtra("position", position)
+        if (!autoPlay) {
+            intent.putExtra("position", position)
+            intent.putExtra("manual_play", true)
+        }
         startActivity(intent)
     }
 
     private fun savePlaylist() {
-        val prefs = getSharedPreferences("playlist", MODE_PRIVATE)
-        prefs.edit().putStringSet("videos", videoFiles.toSet()).apply()
+        getSharedPreferences("playlist", MODE_PRIVATE)
+            .edit()
+            .putStringSet("videos", videoFiles.toSet())
+            .apply()
     }
 
     private fun loadPlaylist() {
